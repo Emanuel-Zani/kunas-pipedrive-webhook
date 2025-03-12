@@ -8,6 +8,7 @@
     "start": "next start"
   },
   "dependencies": {
+    "dotenv": "^16.4.7",
     "next": "15.2.2"
   }
 }
