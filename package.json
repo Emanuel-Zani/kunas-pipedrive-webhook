@@ -1,0 +1,13 @@
+{
+  "name": "kunas-pipedrive-webhook",
+  "version": "0.1.0",
+  "private": true,
+  "scripts": {
+    "dev": "next dev --turbopack",
+    "build": "next build",
+    "start": "next start"
+  },
+  "dependencies": {
+    "next": "15.2.2"
+  }
+}
