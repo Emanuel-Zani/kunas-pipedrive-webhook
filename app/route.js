@@ -9,10 +9,9 @@ export async function GET() {
   return NextResponse.json({ message: "El servidor está funcionando correctamente." });
 }
 
-// 🔍 Función mejorada para buscar una persona con paginación
 async function buscarPersonaPorNombre(nombreBuscado) {
   let start = 0;
-  const limit = 50; // Número de resultados por página
+  const limit = 50; 
 
   try {
     console.log(`🔍 Buscando persona con nombre: "${nombreBuscado}" en Pipedrive...`);
@@ -29,10 +28,8 @@ async function buscarPersonaPorNombre(nombreBuscado) {
         }
       }
 
-      // Si ya no hay más personas, detener la búsqueda
       if (personas.length < limit) break;
 
-      // Pasar a la siguiente página
       start += limit;
     }
 
@@ -44,7 +41,6 @@ async function buscarPersonaPorNombre(nombreBuscado) {
   }
 }
 
-// 🆕 Función para crear una persona en Pipedrive
 async function crearPersonaEnPipedrive(nombreCompleto, email) {
   const personData = {
     name: nombreCompleto,
@@ -68,7 +64,6 @@ async function crearPersonaEnPipedrive(nombreCompleto, email) {
   }
 }
 
-// 📌 Procesamiento del webhook
 export async function POST(request) {
   try {
     const body = await request.json();
@@ -92,15 +87,12 @@ export async function POST(request) {
       const nombreCompleto = `${reservation.data.first_name} ${reservation.data.last_name}`;
       const email = reservation.data.email || ""; 
 
-      // 🔍 Buscar persona en Pipedrive antes de crear el Deal
       let personaId = await buscarPersonaPorNombre(nombreCompleto);
 
       if (!personaId) {
-        // 🆕 Si no existe, crearla
         personaId = await crearPersonaEnPipedrive(nombreCompleto, email);
       }
 
-      // 🏷️ Crear el Deal con el ID de la persona
       await addDeal(reservation.data, personaId);
 
       processedReservations.add(reservationId);
@@ -114,7 +106,6 @@ export async function POST(request) {
   }
 }
 
-// 🏷️ Función para crear un Deal en Pipedrive
 async function addDeal(reservationDetails, personaId) {
   const dealData = {
     title: `Reserva de ${reservationDetails.first_name} ${reservationDetails.last_name} en ${reservationDetails.property_name}`,
@@ -126,20 +117,28 @@ async function addDeal(reservationDetails, personaId) {
   };
 
   if (personaId) {
-    dealData.person_id = personaId;
+    dealData.person_id = personaId; // Si la persona ya existe, usamos su ID
+  } else {
+    dealData.person_name = `${reservationDetails.first_name} ${reservationDetails.last_name}`; // Si no existe, solo el nombre
   }
 
   try {
     const response = await fetch(`${BASE_URL}/deals?api_token=${PIPEDRIVE_API_KEY}`, {
       method: "POST",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify(dealData)
+      headers: {
+        "Content-Type": "application/json",
+      },
+      body: JSON.stringify(dealData),
     });
+
+    if (!response.ok) {
+      throw new Error(`HTTP error! Status: ${response.status}`);
+    }
 
     const data = await response.json();
     console.log("✅ Deal creado exitosamente:", data);
   } catch (error) {
-    console.error("❌ Error al crear el deal:", error);
+    console.error("❌ Error al crear el deal:", error.message);
     throw new Error(error.message);
   }
 }
