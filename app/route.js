@@ -1,5 +1,4 @@
 import { NextResponse } from "next/server";
-import axios from 'axios';
 
 const PIPEDRIVE_API_KEY = process.env.PIPEDRIVE_API_KEY;
 const BASE_URL = "https://api.pipedrive.com/v1";
@@ -10,31 +9,42 @@ export async function GET() {
   return NextResponse.json({ message: "El servidor está funcionando correctamente." });
 }
 
+// 🔍 Función mejorada para buscar una persona con paginación
 async function buscarPersonaPorNombre(nombreBuscado) {
+  let start = 0;
+  const limit = 50; // Número de resultados por página
+
   try {
-    const response = await axios.get(`${BASE_URL}/persons`, {
-      params: { api_token: PIPEDRIVE_API_KEY }
-    });
+    console.log(`🔍 Buscando persona con nombre: "${nombreBuscado}" en Pipedrive...`);
 
-    const personas = response.data.data || [];
+    while (true) {
+      const response = await fetch(`${BASE_URL}/persons?api_token=${PIPEDRIVE_API_KEY}&start=${start}&limit=${limit}`);
+      const data = await response.json();
+      const personas = data.data || [];
 
-    console.log("🔍 Buscando persona con nombre:", nombreBuscado);
-
-    for (const persona of personas) {
-      if (persona.name.toLowerCase() === nombreBuscado.toLowerCase()) {
-        console.log(`✅ Persona encontrada: ID ${persona.id}, Nombre: ${persona.name}`);
-        return persona.id;
+      for (const persona of personas) {
+        if (persona.name.toLowerCase() === nombreBuscado.toLowerCase()) {
+          console.log(`✅ Persona encontrada: ID ${persona.id}, Nombre: ${persona.name}`);
+          return persona.id;
+        }
       }
+
+      // Si ya no hay más personas, detener la búsqueda
+      if (personas.length < limit) break;
+
+      // Pasar a la siguiente página
+      start += limit;
     }
 
-    console.log(`❌ La persona "${nombreBuscado}" no existe.`);
+    console.log(`❌ La persona "${nombreBuscado}" no existe en Pipedrive.`);
     return null;
   } catch (error) {
-    console.error("❌ Error al buscar personas en Pipedrive:", error.response?.data || error.message);
+    console.error("❌ Error al buscar personas en Pipedrive:", error);
     return null;
   }
 }
 
+// 🆕 Función para crear una persona en Pipedrive
 async function crearPersonaEnPipedrive(nombreCompleto, email) {
   const personData = {
     name: nombreCompleto,
@@ -43,19 +53,22 @@ async function crearPersonaEnPipedrive(nombreCompleto, email) {
   };
 
   try {
-    const response = await axios.post(`${BASE_URL}/persons`, personData, {
-      params: { api_token: PIPEDRIVE_API_KEY },
-      headers: { "Content-Type": "application/json" }
+    const response = await fetch(`${BASE_URL}/persons?api_token=${PIPEDRIVE_API_KEY}`, {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify(personData)
     });
 
-    console.log(`✅ Persona creada exitosamente: ID ${response.data.data.id}`);
-    return response.data.data.id;
+    const data = await response.json();
+    console.log(`✅ Persona creada exitosamente: ID ${data.data.id}`);
+    return data.data.id;
   } catch (error) {
-    console.error("❌ Error al crear la persona en Pipedrive:", error.response?.data || error.message);
+    console.error("❌ Error al crear la persona en Pipedrive:", error);
     return null;
   }
 }
 
+// 📌 Procesamiento del webhook
 export async function POST(request) {
   try {
     const body = await request.json();
@@ -79,12 +92,15 @@ export async function POST(request) {
       const nombreCompleto = `${reservation.data.first_name} ${reservation.data.last_name}`;
       const email = reservation.data.email || ""; 
 
+      // 🔍 Buscar persona en Pipedrive antes de crear el Deal
       let personaId = await buscarPersonaPorNombre(nombreCompleto);
 
       if (!personaId) {
+        // 🆕 Si no existe, crearla
         personaId = await crearPersonaEnPipedrive(nombreCompleto, email);
       }
 
+      // 🏷️ Crear el Deal con el ID de la persona
       await addDeal(reservation.data, personaId);
 
       processedReservations.add(reservationId);
@@ -98,6 +114,7 @@ export async function POST(request) {
   }
 }
 
+// 🏷️ Función para crear un Deal en Pipedrive
 async function addDeal(reservationDetails, personaId) {
   const dealData = {
     title: `Reserva de ${reservationDetails.first_name} ${reservationDetails.last_name} en ${reservationDetails.property_name}`,
@@ -113,14 +130,16 @@ async function addDeal(reservationDetails, personaId) {
   }
 
   try {
-    const response = await axios.post(`${BASE_URL}/deals`, dealData, {
-      params: { api_token: PIPEDRIVE_API_KEY },
-      headers: { "Content-Type": "application/json" }
+    const response = await fetch(`${BASE_URL}/deals?api_token=${PIPEDRIVE_API_KEY}`, {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify(dealData)
     });
 
-    console.log("✅ Deal creado exitosamente:", response.data);
+    const data = await response.json();
+    console.log("✅ Deal creado exitosamente:", data);
   } catch (error) {
-    console.error("❌ Error al crear el deal:", error.response?.data || error.message);
+    console.error("❌ Error al crear el deal:", error);
     throw new Error(error.message);
   }
 }
