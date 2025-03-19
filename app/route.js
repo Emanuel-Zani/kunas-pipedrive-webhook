@@ -10,27 +10,16 @@ export async function GET() {
 }
 
 async function buscarPersonaPorNombre(nombreBuscado) {
-  let start = 0;
-  const limit = 50; 
-
   try {
     console.log(`🔍 Buscando persona con nombre: "${nombreBuscado}" en Pipedrive...`);
 
-    while (true) {
-      const response = await fetch(`${BASE_URL}/persons?api_token=${PIPEDRIVE_API_KEY}&start=${start}&limit=${limit}`);
-      const data = await response.json();
-      const personas = data.data || [];
+    const response = await fetch(`${BASE_URL}/persons/search?term=${encodeURIComponent(nombreBuscado)}&api_token=${PIPEDRIVE_API_KEY}`);
+    const data = await response.json();
 
-      for (const persona of personas) {
-        if (persona.name.toLowerCase() === nombreBuscado.toLowerCase()) {
-          console.log(`✅ Persona encontrada: ID ${persona.id}, Nombre: ${persona.name}`);
-          return persona.id;
-        }
-      }
-
-      if (personas.length < limit) break;
-
-      start += limit;
+    if (data.data?.items?.length > 0) {
+      const persona = data.data.items[0].item;
+      console.log(`✅ Persona encontrada: ID ${persona.id}, Nombre: ${persona.name}`);
+      return persona.id;
     }
 
     console.log(`❌ La persona "${nombreBuscado}" no existe en Pipedrive.`);
@@ -54,6 +43,10 @@ async function crearPersonaEnPipedrive(nombreCompleto, email) {
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify(personData)
     });
+
+    if (!response.ok) {
+      throw new Error(`Error al crear persona: ${response.status}`);
+    }
 
     const data = await response.json();
     console.log(`✅ Persona creada exitosamente: ID ${data.data.id}`);
@@ -86,6 +79,10 @@ export async function POST(request) {
 
       const nombreCompleto = `${reservation.data.first_name} ${reservation.data.last_name}`;
       const email = reservation.data.email || ""; 
+      const niños = (reservation.data.children_1 ?? 0) + (reservation.data.children_2 ?? 0) +
+                    (reservation.data.children_3 ?? 0) + (reservation.data.children_4 ?? 0) +
+                    (reservation.data.children_5 ?? 0) + (reservation.data.children_6 ?? 0) +
+                    (reservation.data.children_7 ?? 0);
 
       let personaId = await buscarPersonaPorNombre(nombreCompleto);
 
@@ -93,7 +90,7 @@ export async function POST(request) {
         personaId = await crearPersonaEnPipedrive(nombreCompleto, email);
       }
 
-      await addDeal(reservation.data, personaId);
+      await addDeal(reservation.data, personaId, niños);
 
       processedReservations.add(reservationId);
       return NextResponse.json({ message: "Webhook recibido y procesado." }, { status: 200 });
@@ -106,20 +103,25 @@ export async function POST(request) {
   }
 }
 
-async function addDeal(reservationDetails, personaId) {
+async function addDeal(reservationDetails, personaId, niños) {
   const dealData = {
     title: `Reserva de ${reservationDetails.first_name} ${reservationDetails.last_name} en ${reservationDetails.property_name}`,
     value: reservationDetails.total_price.toString(),
     ddc01baa72203eab75797469a79a1afc776dac68: reservationDetails.date_arrival,
     cd15dbfc3572ccb243664390a21010e3eb9e7c81: reservationDetails.date_departure,
+    ac907fd34e67f90bab739453da5642cfc79dbf3a: reservationDetails.phone,
+    ec929dafad8161a2191a9310e8a22c3f0e14dcea: reservationDetails.nights,
+    '91643604b4916086cf51d676af68bcb53b7c4d44': reservationDetails.country,
+    aee0b941b3164ed351e8f73989bca903207a97f3: reservationDetails.adults,
+    '5f41eab7a51a40acbf99a24d8dc36a7f5786cf86': niños,
     pipeline_id: 1,
     stage_id: 1,
   };
 
   if (personaId) {
-    dealData.person_id = personaId; // Si la persona ya existe, usamos su ID
+    dealData.person_id = personaId;
   } else {
-    dealData.person_name = `${reservationDetails.first_name} ${reservationDetails.last_name}`; // Si no existe, solo el nombre
+    dealData.person_name = `${reservationDetails.first_name} ${reservationDetails.last_name}`;
   }
 
   try {
