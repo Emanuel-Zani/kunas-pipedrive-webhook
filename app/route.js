@@ -9,31 +9,26 @@ export async function GET() {
   return NextResponse.json({ message: "El servidor está funcionando correctamente." });
 }
 
-// 🔍 Nueva función que busca persona por nombre y email
-async function buscarPersonaPorNombreOEmail(nombreBuscado, emailBuscado) {
+async function buscarPersonaPorNombre(nombreBuscado) {
   try {
-    console.log(`🔍 Buscando persona con nombre: "${nombreBuscado}" o email: "${emailBuscado}" en Pipedrive...`);
+    console.log(`🔍 Buscando persona con nombre: "${nombreBuscado}" en Pipedrive...`);
 
-    const response = await fetch(`${BASE_URL}/persons/search?term=${encodeURIComponent(emailBuscado)}&api_token=${PIPEDRIVE_API_KEY}`);
+    const response = await fetch(`${BASE_URL}/persons/search?term=${encodeURIComponent(nombreBuscado)}&api_token=${PIPEDRIVE_API_KEY}`);
     const data = await response.json();
 
     if (data.data?.items?.length > 0) {
-      for (const item of data.data.items) {
-        const persona = item.item;
+      const persona = data.data.items[0].item;
+      const email = persona.emails?.find(e => e.primary)?.value || "No especificado";
+      
+      console.log(`✅ Persona encontrada: ID ${persona.id}, Nombre: ${persona.name}, Email: ${email}`);
 
-        // Validar coincidencia exacta en nombre y email
-        const emails = persona.email?.map(e => e.value.toLowerCase()) || [];
-        if (emails.includes(emailBuscado.toLowerCase()) && persona.name.toLowerCase() === nombreBuscado.toLowerCase()) {
-          console.log(`✅ Persona encontrada: ID ${persona.id}, Nombre: ${persona.name}, Email: ${emails}`);
-          return persona.id;
-        }
-      }
+      return persona.id;
     }
 
-    console.log(`❌ La persona con nombre "${nombreBuscado}" y email "${emailBuscado}" no existe en Pipedrive.`);
+    console.log(`❌ La persona "${nombreBuscado}" no existe en Pipedrive.`);
     return null;
   } catch (error) {
-    console.error("❌ Error al buscar persona en Pipedrive:", error);
+    console.error("❌ Error al buscar personas en Pipedrive:", error);
     return null;
   }
 }
@@ -92,8 +87,7 @@ export async function POST(request) {
                     (reservation.data.children_5 ?? 0) + (reservation.data.children_6 ?? 0) +
                     (reservation.data.children_7 ?? 0);
 
-      // 🔄 Nueva búsqueda por nombre y email
-      let personaId = await buscarPersonaPorNombreOEmail(nombreCompleto, email);
+      let personaId = await buscarPersonaPorNombre(nombreCompleto);
 
       if (!personaId) {
         personaId = await crearPersonaEnPipedrive(nombreCompleto, email);
