@@ -141,7 +141,7 @@ export async function POST(request) {
                     (reservation.data.children_7 ?? 0);
       let personaId = await buscarPersonaPorNombre(nombreCompleto);
       let paisYtelefono = await extraerDatos(email).then(console.log).catch(console.error);;
-      
+      console.log("Pais y telefono: ", paisYtelefono)
       const telefono = paisYtelefono.phone;
       const pais = paisYtelefono.country;
 
@@ -160,6 +160,8 @@ export async function POST(request) {
 }
 
 async function addDeal(reservationDetails, personaId, niños, telefono, pais) {
+  console.log("Telefono: ",telefono)
+  console.log("Pais: ",pais)
   const dealData = {
     title: `Reserva de ${reservationDetails.first_name} ${reservationDetails.last_name} en ${reservationDetails.property_name}`,
     value: reservationDetails.total_price.toString(),
