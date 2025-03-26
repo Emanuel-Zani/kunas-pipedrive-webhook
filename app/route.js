@@ -65,11 +65,15 @@ async function extraerDatos(email) {
   const url = "https://app.otasync.me/api/guests/data/guests";
   const headers = { "Content-Type": "application/json" };
   const id_properties = 7542;
-  let foundData = null;
+  const maxPages = 10; // Límite de páginas por día para evitar bucles infinitos
+  let matches = []; // Array para guardar todos los huéspedes que coincidan con el email
   let daysOffset = 0;
-  const maxDaysOffset = 30; // Hasta cuántos días atrás buscar
+  let consecutiveEmptyDays = 0; // Contador de días sin resultados
+  const maxConsecutiveEmptyDays = 5; // Si se alcanzan 5 días consecutivos sin datos, se asume que no hay más registros
 
-  while (!foundData && daysOffset <= maxDaysOffset) {
+  // Bucle infinito: se detendrá cuando se cumpla la condición de días sin resultados
+  while (true) {
+    let dayHasData = false;
     let page = 1;
     const dfrom = new Date();
     dfrom.setDate(dfrom.getDate() - daysOffset);
@@ -78,8 +82,8 @@ async function extraerDatos(email) {
     const formattedDfrom = dfrom.toISOString().split('T')[0];
     const formattedDto = dto.toISOString().split('T')[0];
 
-    // Bucle interno para paginar la búsqueda en el rango de fechas definido
-    while (!foundData) {
+    // Paginación para el día definido
+    while (page <= maxPages) {
       try {
         const response = await fetch(url, {
           method: "POST",
@@ -97,14 +101,14 @@ async function extraerDatos(email) {
           throw new Error(`Error en la solicitud: ${response.statusText}`);
         }
         const data = await response.json();
+        // Si en esta página no hay datos, sal del bucle de páginas para este día
         if (!data || !data.guests || data.guests.length === 0) break;
+
+        dayHasData = true;
+        // Agrega al array todos los huéspedes que tengan el mismo email
         for (const guest of data.guests) {
           if (guest.email === email) {
-            foundData = {
-              phone: guest.phone,
-              country: guest.country
-            };
-            break;
+            matches.push(guest);
           }
         }
         page++;
@@ -113,10 +117,38 @@ async function extraerDatos(email) {
         break;
       }
     }
+
+    // Si no se obtuvieron datos para este día, incrementa el contador de días sin resultados
+    if (!dayHasData) {
+      consecutiveEmptyDays++;
+    } else {
+      consecutiveEmptyDays = 0; // Reinicia el contador si hubo datos
+    }
+
+    // Si se han obtenido datos nulos por varios días consecutivos, se asume que no hay más registros
+    if (consecutiveEmptyDays >= maxConsecutiveEmptyDays) {
+      break;
+    }
+
     daysOffset++;
   }
-  return foundData;
+
+  // Si se encontró al menos un huésped con el email, se selecciona el candidato que tenga datos completos
+  if (matches.length > 0) {
+    let candidato = matches.find(guest => guest.phone && guest.phone.trim() && guest.country && guest.country.trim());
+    if (!candidato) {
+      candidato = matches[0];
+    }
+    return {
+      phone: (candidato.phone && candidato.phone.trim()) || "No especificado",
+      country: (candidato.country && candidato.country.trim()) || "No especificado"
+    };
+  }
+
+  // Si no se encontró ninguno, retorna valores por defecto
+  return { phone: null, country: null };
 }
+
 
 export async function POST(request) {
   try {
