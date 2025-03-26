@@ -3,8 +3,6 @@ import { NextResponse } from "next/server";
 const PIPEDRIVE_API_KEY = process.env.PIPEDRIVE_API_KEY;
 const BASE_URL = "https://api.pipedrive.com/v1";
 const processedReservations = new Set();
-const TOKEN_KUNAS = process.env.TOKEN_KUNAS;
-const KEY_KUNAS = process.env.KEY_KUNAS;
 
 export async function GET() {
   console.log("Funcionando!");
@@ -19,7 +17,6 @@ async function buscarPersonaPorNombre(nombreBuscado) {
     );
     const data = await response.json();
     if (data.data?.items?.length > 0) {
-      // Se itera sobre los resultados para encontrar una coincidencia exacta (ignorando mayúsculas/minúsculas)
       for (const itemObj of data.data.items) {
         const persona = itemObj.item;
         if (persona.name.toLowerCase() === nombreBuscado.toLowerCase()) {
@@ -61,94 +58,6 @@ async function crearPersonaEnPipedrive(nombreCompleto, email) {
   }
 }
 
-async function extraerDatos(email) {
-  const url = "https://app.otasync.me/api/guests/data/guests";
-  const headers = { "Content-Type": "application/json" };
-  const id_properties = 7542;
-  const maxPages = 10; // Límite de páginas por día para evitar bucles infinitos
-  let matches = []; // Array para guardar todos los huéspedes que coincidan con el email
-  let daysOffset = 0;
-  let consecutiveEmptyDays = 0; // Contador de días sin resultados
-  const maxConsecutiveEmptyDays = 5; // Si se alcanzan 5 días consecutivos sin datos, se asume que no hay más registros
-
-  // Bucle infinito: se detendrá cuando se cumpla la condición de días sin resultados
-  while (true) {
-    let dayHasData = false;
-    let page = 1;
-    const dfrom = new Date();
-    dfrom.setDate(dfrom.getDate() - daysOffset);
-    const dto = new Date(dfrom);
-    dto.setDate(dto.getDate() + 1);
-    const formattedDfrom = dfrom.toISOString().split('T')[0];
-    const formattedDto = dto.toISOString().split('T')[0];
-
-    // Paginación para el día definido
-    while (page <= maxPages) {
-      try {
-        const response = await fetch(url, {
-          method: "POST",
-          headers,
-          body: JSON.stringify({
-            token: TOKEN_KUNAS,
-            key: KEY_KUNAS,
-            id_properties,
-            dfrom: formattedDfrom,
-            dto: formattedDto,
-            page
-          })
-        });
-        if (!response.ok) {
-          throw new Error(`Error en la solicitud: ${response.statusText}`);
-        }
-        const data = await response.json();
-        // Si en esta página no hay datos, sal del bucle de páginas para este día
-        if (!data || !data.guests || data.guests.length === 0) break;
-
-        dayHasData = true;
-        // Agrega al array todos los huéspedes que tengan el mismo email
-        for (const guest of data.guests) {
-          if (guest.email === email) {
-            matches.push(guest);
-          }
-        }
-        page++;
-      } catch (error) {
-        console.error("Error al obtener datos:", error);
-        break;
-      }
-    }
-
-    // Si no se obtuvieron datos para este día, incrementa el contador de días sin resultados
-    if (!dayHasData) {
-      consecutiveEmptyDays++;
-    } else {
-      consecutiveEmptyDays = 0; // Reinicia el contador si hubo datos
-    }
-
-    // Si se han obtenido datos nulos por varios días consecutivos, se asume que no hay más registros
-    if (consecutiveEmptyDays >= maxConsecutiveEmptyDays) {
-      break;
-    }
-
-    daysOffset++;
-  }
-
-  // Si se encontró al menos un huésped con el email, se selecciona el candidato que tenga datos completos
-  if (matches.length > 0) {
-    let candidato = matches.find(guest => guest.phone && guest.phone.trim() && guest.country && guest.country.trim());
-    if (!candidato) {
-      candidato = matches[0];
-    }
-    return {
-      phone: (candidato.phone && candidato.phone.trim()) || "No especificado",
-      country: (candidato.country && candidato.country.trim()) || "No especificado"
-    };
-  }
-
-  // Si no se encontró ninguno, retorna valores por defecto
-  return { phone: null, country: null };
-}
-
 
 export async function POST(request) {
   try {
@@ -172,15 +81,11 @@ export async function POST(request) {
                     (reservation.data.children_5 ?? 0) + (reservation.data.children_6 ?? 0) +
                     (reservation.data.children_7 ?? 0);
       let personaId = await buscarPersonaPorNombre(nombreCompleto);
-      let paisYtelefono = await extraerDatos(email).then(console.log).catch(console.error);;
-      console.log("Pais y telefono: ", paisYtelefono)
-      const telefono = paisYtelefono.phone;
-      const pais = paisYtelefono.country;
 
       if (!personaId) {
         personaId = await crearPersonaEnPipedrive(nombreCompleto, email);
       }
-      await addDeal(reservation.data, personaId, niños, telefono, pais);
+      await addDeal(reservation.data, personaId, niños);
       processedReservations.add(reservationId);
       return NextResponse.json({ message: "Webhook recibido y procesado." }, { status: 200 });
     }
@@ -191,9 +96,8 @@ export async function POST(request) {
   }
 }
 
-async function addDeal(reservationDetails, personaId, niños, telefono, pais) {
-  console.log("Telefono: ",telefono)
-  console.log("Pais: ",pais)
+async function addDeal(reservationDetails, personaId, niños,) {
+
   const dealData = {
     title: `Reserva de ${reservationDetails.first_name} ${reservationDetails.last_name} en ${reservationDetails.property_name}`,
     value: reservationDetails.total_price.toString(),
@@ -202,8 +106,8 @@ async function addDeal(reservationDetails, personaId, niños, telefono, pais) {
     ec929dafad8161a2191a9310e8a22c3f0e14dcea: reservationDetails.nights ?? "No especificado",
     aee0b941b3164ed351e8f73989bca903207a97f3: reservationDetails.adults ?? "No especificado",
     '5f41eab7a51a40acbf99a24d8dc36a7f5786cf86': niños ?? "No especificado",
-    ac907fd34e67f90bab739453da5642cfc79dbf3a: telefono ?? "No especificado",
-    '91643604b4916086cf51d676af68bcb53b7c4d44': pais ?? "No especificado",
+    ac907fd34e67f90bab739453da5642cfc79dbf3a: reservationDetails.phone ?? "No especificado",
+    '91643604b4916086cf51d676af68bcb53b7c4d44': reservationDetails.country ?? "No especificado",
 
 
     pipeline_id: 1,
