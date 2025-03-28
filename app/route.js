@@ -116,10 +116,9 @@ async function addDeal(reservationDetails, personaId, niños,) {
     //Cantidad de niños
     '5f41eab7a51a40acbf99a24d8dc36a7f5786cf86': niños ?? "No especificado",
     //Teléfono
-    ac907fd34e67f90bab739453da5642cfc79dbf3a: reservationDetails.phone ?? "No especificado",
+    phone: reservationDetails.phone ?? "No especificado",
     //País
-    '91643604b4916086cf51d676af68bcb53b7c4d44': reservationDetails.country ?? "No especificado",
-
+    '6c93fbe9ffc994b56c640ebf803cf63a0a0d67a4': reservationDetails.country ?? "No especificado",
 
     pipeline_id: 1,
     stage_id: 1,
