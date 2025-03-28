@@ -99,21 +99,34 @@ export async function POST(request) {
 async function addDeal(reservationDetails, personaId, niños,) {
 
   const dealData = {
+    
+    //Titulo de la tarjeta
     title: `Reserva de ${reservationDetails.first_name} ${reservationDetails.last_name} en ${reservationDetails.property_name}`,
+    //Precio
     value: reservationDetails.total_price.toString(),
+    '07536df1ea27b358d11a5bc03244c8ada11a2f91': reservationDetails.total_price.toString(),
+    //Fecha de llegada
     ddc01baa72203eab75797469a79a1afc776dac68: reservationDetails.date_arrival ?? "No especificado",
+    //Fecha de salida
     cd15dbfc3572ccb243664390a21010e3eb9e7c81: reservationDetails.date_departure ?? "No especificado",
+    //Cantidad de noches
     ec929dafad8161a2191a9310e8a22c3f0e14dcea: reservationDetails.nights ?? "No especificado",
+    //Cantidad de adultos
     aee0b941b3164ed351e8f73989bca903207a97f3: reservationDetails.adults ?? "No especificado",
+    //Cantidad de niños
     '5f41eab7a51a40acbf99a24d8dc36a7f5786cf86': niños ?? "No especificado",
+    //Teléfono
+    phone: reservationDetails.phone ?? "No especificado",
     ac907fd34e67f90bab739453da5642cfc79dbf3a: reservationDetails.phone ?? "No especificado",
+    //País
+    '6c93fbe9ffc994b56c640ebf803cf63a0a0d67a4': reservationDetails.country ?? "No especificado",
     '91643604b4916086cf51d676af68bcb53b7c4d44': reservationDetails.country ?? "No especificado",
 
 
     pipeline_id: 1,
     stage_id: 1,
   };
-
+  
   if (personaId) {
     dealData.person_id = personaId;
   } else {
