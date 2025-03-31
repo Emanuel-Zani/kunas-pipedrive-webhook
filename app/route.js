@@ -12,7 +12,7 @@ export async function GET() {
 async function buscarPersonaPorNombreYTelefono(nombreBuscado, telefonoBuscado) {
   try {
     console.log(`🔍 Buscando persona con nombre: "${nombreBuscado}" y teléfono: "${telefonoBuscado}" en Pipedrive...`);
-    
+
     const response = await fetch(
       `${BASE_URL}/persons/search?term=${encodeURIComponent(nombreBuscado)}&api_token=${PIPEDRIVE_API_KEY}`
     );
@@ -21,10 +21,12 @@ async function buscarPersonaPorNombreYTelefono(nombreBuscado, telefonoBuscado) {
     if (data.data?.items?.length > 0) {
       for (const itemObj of data.data.items) {
         const persona = itemObj.item;
-        const email = persona.emails?.find(e => e.primary)?.value || "No especificado";
-        console.log("Datos de Pipedrive: ",persona.itemObj,"Datos phone de Pipedrive: ", persona.phone,"Perona: ",persona)
-        if (persona.phone && persona.phone.length > 0) {
-          const phoneMatch = persona.phone.some(p => p.value.trim() === telefonoBuscado.trim());
+        const email = persona.primary_email || "No especificado";
+        console.log("Persona: ", persona);
+
+        if (persona.phones && persona.phones.length > 0) {
+          // Comparar teléfonos correctamente
+          const phoneMatch = persona.phones.some(p => p.trim() === telefonoBuscado.trim());
 
           if (persona.name.toLowerCase() === nombreBuscado.toLowerCase() && phoneMatch) {
             console.log(`✅ Persona encontrada: ID ${persona.id}, Nombre: ${persona.name}, Teléfono: ${telefonoBuscado}, Email: ${email}`);
@@ -41,6 +43,7 @@ async function buscarPersonaPorNombreYTelefono(nombreBuscado, telefonoBuscado) {
     return null;
   }
 }
+
 
 async function crearPersonaEnPipedrive(nombreCompleto, email, reservationDetails) {
   const phone = reservationDetails.phone ? 
