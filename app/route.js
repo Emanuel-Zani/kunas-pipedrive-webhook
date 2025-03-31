@@ -41,10 +41,12 @@ async function crearPersonaEnPipedrive(nombreCompleto, email, reservationDetails
     [{ value: String(reservationDetails.phone), label: "", primary: true }] : 
     [];
 
+  const country = reservationDetails.country;
   const personData = {
     name: nombreCompleto,
     email: email,
     phone: phone,
+    '6c93fbe9ffc994b56c640ebf803cf63a0a0d67a4': country,
     visible_to: 3,
   };
 
