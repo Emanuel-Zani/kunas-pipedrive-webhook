@@ -139,13 +139,18 @@ async function addDeal(reservationDetails, personaId, niños,) {
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify(dealData),
     });
+
     if (!response.ok) {
-      throw new Error(`HTTP error! Status: ${response.status}`);
+      const errorData = await response.json();  // Captura el contenido del error
+      console.error("❌ Error en la API de Pipedrive:", JSON.stringify(errorData, null, 2));
+      throw new Error(`HTTP error! Status: ${response.status} - ${errorData.error || "Sin mensaje de error"}`);
     }
+
     const data = await response.json();
     console.log("✅ Deal creado exitosamente:", data);
   } catch (error) {
     console.error("❌ Error al crear el deal:", error.message);
     throw new Error(error.message);
   }
+
 }
