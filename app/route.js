@@ -117,7 +117,9 @@ async function addDeal(reservationDetails, personaId, niños,) {
     '5f41eab7a51a40acbf99a24d8dc36a7f5786cf86': niños ?? "No especificado",
     //Teléfono
     //ac907fd34e67f90bab739453da5642cfc79dbf3a: reservationDetails.phone ?? "No especificado",
-    d8119c2139de14c21570025546e4bb3a3cfcc805: Number(reservationDetails.phone),
+    phone: reservationDetails.phone
+    ? [{ value: String(reservationDetails.phone), label: "", primary: true }]
+    : [],
     //País
     '91643604b4916086cf51d676af68bcb53b7c4d44': reservationDetails.country ?? "No especificado",
 
