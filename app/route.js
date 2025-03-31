@@ -34,12 +34,18 @@ async function buscarPersonaPorNombre(nombreBuscado) {
   }
 }
 
-async function crearPersonaEnPipedrive(nombreCompleto, email) {
+async function crearPersonaEnPipedrive(nombreCompleto, email, reservationDetails) {
+  const phone = reservationDetails.phone ? 
+    [{ value: String(reservationDetails.phone), label: "", primary: true }] : 
+    [];
+
   const personData = {
     name: nombreCompleto,
     email: email,
+    phone: phone,
     visible_to: 3,
   };
+
   try {
     const response = await fetch(`${BASE_URL}/persons?api_token=${PIPEDRIVE_API_KEY}`, {
       method: "POST",
@@ -57,7 +63,6 @@ async function crearPersonaEnPipedrive(nombreCompleto, email) {
     return null;
   }
 }
-
 
 export async function POST(request) {
   try {
@@ -115,11 +120,6 @@ async function addDeal(reservationDetails, personaId, niños,) {
     aee0b941b3164ed351e8f73989bca903207a97f3: reservationDetails.adults ?? "No especificado",
     //Cantidad de niños
     '5f41eab7a51a40acbf99a24d8dc36a7f5786cf86': niños ?? "No especificado",
-    //Teléfono
-    //ac907fd34e67f90bab739453da5642cfc79dbf3a: reservationDetails.phone ?? "No especificado",
-    phone: reservationDetails.phone
-    ? [{ value: String(reservationDetails.phone), label: "", primary: true }]
-    : [],
     //País
     '91643604b4916086cf51d676af68bcb53b7c4d44': reservationDetails.country ?? "No especificado",
 
