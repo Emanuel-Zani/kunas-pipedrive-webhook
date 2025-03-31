@@ -22,7 +22,7 @@ async function buscarPersonaPorNombreYTelefono(nombreBuscado, telefonoBuscado) {
       for (const itemObj of data.data.items) {
         const persona = itemObj.item;
         const email = persona.emails?.find(e => e.primary)?.value || "No especificado";
-
+        console.log("Datos de Pipedrive: ",persona.itemObj,"Datos phone de Pipedrive: ", persona.phone,"Perona: ",persona)
         if (persona.phone && persona.phone.length > 0) {
           const phoneMatch = persona.phone.some(p => p.value.trim() === telefonoBuscado.trim());
 
