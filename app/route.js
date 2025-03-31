@@ -133,24 +133,32 @@ async function addDeal(reservationDetails, personaId, niños,) {
     dealData.person_name = `${reservationDetails.first_name} ${reservationDetails.last_name}`;
   }
 
-  try {
-    const response = await fetch(`${BASE_URL}/deals?api_token=${PIPEDRIVE_API_KEY}`, {
-      method: "POST",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify(dealData),
-    });
+ try {
+  // Imprimir los datos antes de hacer el POST
+  console.log("📩 Enviando a Pipedrive:", JSON.stringify(dealData, null, 2));
+  
+  const response = await fetch(`${BASE_URL}/deals?api_token=${PIPEDRIVE_API_KEY}`, {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify(dealData),
+  });
 
-    if (!response.ok) {
-      const errorData = await response.json();  // Captura el contenido del error
-      console.error("❌ Error en la API de Pipedrive:", JSON.stringify(errorData, null, 2));
-      throw new Error(`HTTP error! Status: ${response.status} - ${errorData.error || "Sin mensaje de error"}`);
-    }
-
-    const data = await response.json();
-    console.log("✅ Deal creado exitosamente:", data);
-  } catch (error) {
-    console.error("❌ Error al crear el deal:", error.message);
-    throw new Error(error.message);
+  // Revisar si la respuesta no fue exitosa
+  if (!response.ok) {
+    const errorData = await response.json();  // Captura el contenido del error
+    console.error("❌ Error en la API de Pipedrive:", JSON.stringify(errorData, null, 2));
+    throw new Error(`HTTP error! Status: ${response.status} - ${errorData.error || "Sin mensaje de error"}`);
   }
+
+  // Si todo va bien, procesamos la respuesta
+  const data = await response.json();
+  console.log("✅ Deal creado exitosamente:", data);
+} catch (error) {
+  // Log de error
+  console.error("❌ Error al crear el deal:", error.message);
+  // Vuelve a lanzar el error con el mensaje
+  throw new Error(error.message);
+}
+
 
 }
