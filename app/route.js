@@ -9,24 +9,26 @@ export async function GET() {
   return NextResponse.json({ message: "El servidor está funcionando correctamente." });
 }
 
-async function buscarPersonaPorNombre(nombreBuscado) {
+async function buscarPersonaPorNombreYTelefono(nombreBuscado, telefonoBuscado) {
   try {
-    console.log(`🔍 Buscando persona con nombre: "${nombreBuscado}" en Pipedrive...`);
+    console.log(`🔍 Buscando persona con nombre: "${nombreBuscado}" y teléfono: "${telefonoBuscado}" en Pipedrive...`);
     const response = await fetch(
       `${BASE_URL}/persons/search?term=${encodeURIComponent(nombreBuscado)}&api_token=${PIPEDRIVE_API_KEY}`
     );
     const data = await response.json();
+
     if (data.data?.items?.length > 0) {
       for (const itemObj of data.data.items) {
         const persona = itemObj.item;
-        if (persona.name.toLowerCase() === nombreBuscado.toLowerCase()) {
-          const email = persona.emails?.find(e => e.primary)?.value || "No especificado";
+        const email = persona.emails?.find(e => e.primary)?.value || "No especificado";
+        const phoneMatch = persona.phone?.some(p => p.value === telefonoBuscado);
+        if (persona.name.toLowerCase() === nombreBuscado.toLowerCase() && phoneMatch) {
           console.log(`✅ Persona encontrada: ID ${persona.id}, Nombre: ${persona.name}, Email: ${email}`);
           return persona.id;
         }
       }
     }
-    console.log(`❌ La persona "${nombreBuscado}" no existe en Pipedrive.`);
+    console.log(`❌ No se encontró una persona con ese nombre y teléfono en Pipedrive.`);
     return null;
   } catch (error) {
     console.error("❌ Error al buscar personas en Pipedrive:", error);
@@ -81,14 +83,16 @@ export async function POST(request) {
       console.log("📌 Nueva reserva detectada:", reservation);
       const nombreCompleto = `${reservation.data.first_name} ${reservation.data.last_name}`;
       const email = reservation.data.email || "";
+      const telefono = String(reservation.data.phone); 
       const niños = (reservation.data.children_1 ?? 0) + (reservation.data.children_2 ?? 0) +
                     (reservation.data.children_3 ?? 0) + (reservation.data.children_4 ?? 0) +
                     (reservation.data.children_5 ?? 0) + (reservation.data.children_6 ?? 0) +
                     (reservation.data.children_7 ?? 0);
-      let personaId = await buscarPersonaPorNombre(nombreCompleto);
+
+      let personaId = await buscarPersonaPorNombreYTelefono(nombreCompleto, telefono);
 
       if (!personaId) {
-        personaId = await crearPersonaEnPipedrive(nombreCompleto, email, reservation.data); // Asegúrate de pasar reservation.data
+        personaId = await crearPersonaEnPipedrive(nombreCompleto, email, reservation.data);
       }
       await addDeal(reservation.data, personaId, niños);
       processedReservations.add(reservationId);
